@@ -1,5 +1,11 @@
 # cursor-agent-sdk
 
+[![PyPI version](https://img.shields.io/pypi/v/cursor-agent-sdk)](https://pypi.org/project/cursor-agent-sdk/)
+[![Python versions](https://img.shields.io/pypi/pyversions/cursor-agent-sdk)](https://pypi.org/project/cursor-agent-sdk/)
+[![License](https://img.shields.io/pypi/l/cursor-agent-sdk)](https://pypi.org/project/cursor-agent-sdk/)  
+[![PyPI downloads](https://img.shields.io/pypi/dm/cursor-agent-sdk)](https://pypi.org/project/cursor-agent-sdk/)
+[![PyPI wheel](https://img.shields.io/pypi/wheel/cursor-agent-sdk)](https://pypi.org/project/cursor-agent-sdk/)
+
 Thin, typed Python bindings for the **[Cursor Cloud Agents API](https://cursor.com/docs/cloud-agent/api/endpoints)**—drive cloud coding agents from CI, bots, or scripts instead of clicking through the dashboard. Built on [httpx](https://www.python-httpx.org/); **sync by default**, **async when you already use asyncio**.
 
 Python **3.10+**.
