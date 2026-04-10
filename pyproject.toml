@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cursor-agent-sdk"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python client wrapper for the Cursor Agent API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,7 @@ dependencies = [
 [project.urls]
 # GitHub → repo → Settings → Pages — paste the same URL PyPI shows as "Documentation"
 Documentation = "https://aidmet.github.io/cursor-agent-api/"
+Repository = "https://github.com/aidmet/cursor-agent-api"
 
 [project.optional-dependencies]
 docs = [

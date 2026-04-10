@@ -1,3 +1,4 @@
 .venv
 .vscode
 docs/_build
+dist
