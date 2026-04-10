@@ -1,95 +1,126 @@
 Concepts
 ========
 
-This page names the main ideas behind **cursor-agent-sdk** and the
-`Cursor Cloud Agents API <https://cursor.com/docs/cloud-agent/api/endpoints>`__. For install and
-copy-paste examples, see :doc:`quickstart`.
+Ideas behind **cursor-agent-sdk**—how to think before you read the API list. Hands-on steps:
+:doc:`quickstart`.
 
-Remote service vs this library
--------------------------------
+The API vs this library
+-----------------------
 
-The **Cursor Cloud Agents API** is Cursor’s hosted HTTP API (``api.cursor.com``, paths under
-``/v0``). It creates **cloud agents** that work against **GitHub** repositories or pull requests.
+**Anchor:** Cursor runs cloud work **on their servers**; this SDK only **sends HTTP requests** from your machine.
 
-**cursor-agent-sdk** is a thin Python wrapper: it does not run the agent itself—it sends the same
-requests you could send with ``curl`` or ``httpx``, with typed methods and a small **agent**
-abstraction so you do not have to track ids and sources by hand.
+Cursor exposes a hosted **Cursor Cloud Agents API** (`Cursor Cloud Agents API docs
+<https://cursor.com/docs/cloud-agent/api/endpoints>`__). “Cloud agents” are remote jobs tied to
+GitHub repos or PRs.
+
+**cursor-agent-sdk** packages those calls in Python. It does **not** embed Cursor’s IDE, run models
+locally, or guarantee PR outcomes—only what the API returns.
+
+**What this is NOT**
+
+* A replacement for the official HTTP docs (behaviour and limits live there).
+* A way to drive the **desktop Cursor app**; it is **dashboard-style Cloud Agents**, via key + HTTP.
 
 Authentication
-----------------
+--------------
 
-Every request must include your **Cloud Agents API key**. The service expects **HTTP Basic** auth:
-**username** = the key, **password** empty. Both :class:`SyncClient` and :class:`AsyncClient` apply
-that for you when you pass the key to the constructor.
+**Anchor:** Your **Cloud Agents API key** is the credential; the client attaches it to every
+request (Basic auth: key as username, empty password).
 
-Keys are issued from the Cursor Dashboard (**Cloud Agents**). They are **secrets**: load them from
-environment variables or a secret store, not from source control.
+Get the key under Dashboard → **Cloud Agents**. Treat it like a password: env vars or a secret
+manager, not a committed file.
 
-Client
-------
+**What this is NOT**
 
-A **client** (:class:`SyncClient` or :class:`AsyncClient`) represents:
+* The same key family as “any Cursor login” by assumption—use the key type the dashboard labels for
+  Cloud Agents / this API.
 
-* The **base URL** (default ``https://api.cursor.com``).
-* **Connection settings** (timeouts, and optionally a custom :class:`httpx.Client` /
-  :class:`httpx.AsyncClient` via ``from_httpx_client``).
-* **Credentials** used for every call.
+Client = one front door to the HTTP API
+---------------------------------------
 
-Create **one client** per logical app or long-lived process. It is cheap to reuse; you typically do
-**not** create a new client per HTTP call.
+**Anchor:** A **client** is the long-lived object that knows **base URL**, **timeouts**, and **who
+you are** (the key).
 
-:class:`CursorClient` is an alias for :class:`SyncClient`.
+Use **one** :class:`SyncClient` or :class:`AsyncClient` per app or process. Reuse it; do not spin a
+new client per call. :class:`CursorClient` is the same as :class:`SyncClient`.
 
-Agent handle
-------------
+**What this is NOT**
 
-An **agent** (:class:`Agent` or :class:`AsyncAgent`) is **not** the remote worker by itself—it is a
-**handle** in your process that remembers:
+* A “session” with a single cloud agent—agents are separate handles (below).
 
-* **Source** — a GitHub **repository URL** and optional **ref** (branch/tag/commit), *or* a
-  **pull request URL** (``pr_url``). Set when you call :meth:`SyncClient.new_agent`.
-* **Identity** — after a successful :meth:`Agent.create`, the **cloud agent id** returned by the API
-  (e.g. ``bc_…``). Later :meth:`Agent.follow_up` calls use that id.
+Agent = local bookmark for one remote run
+------------------------------------------
 
-So: **new_agent** chooses *where* work happens; **create** starts the remote run and stores *which*
-run; **follow_up** sends more instructions to **that same** run.
+**Anchor:** An **Agent** (or **AsyncAgent**) is a **Python object in your process** that remembers
+**where** work targets GitHub (**repo** + **ref**, or **pr_url**) and, after you start it, **which**
+remote run you are talking to (**id**).
 
-If you already have an id from a previous session, :meth:`Agent.attach` sets the handle to that id
-and clears source fields—use **follow_up** / **refresh** only, not another **create** on the same
-handle unless you use a **new** :meth:`SyncClient.new_agent` for a separate run.
+It is **not** the worker process on Cursor’s side—it is your **handle** to that run.
 
-Lifecycle (high level)
-----------------------
+.. code-block:: python
 
-#. **Bind source** — ``client.new_agent(repo=…, ref=…)`` or ``new_agent(pr_url=…)``.
-#. **Start work** — ``agent.create(prompt, …)`` once per handle (``POST /v0/agents``).
-#. **Continue** — ``agent.follow_up(prompt, …)`` (``POST /v0/agents/{id}/followup``).
-#. **Observe** — ``agent.refresh``, ``agent.conversation``, or webhooks if you configure them on
-   **create** (see Cursor’s API docs).
+   agent = client.new_agent(
+       repo="https://github.com/org/repo",
+       ref="main",
+   )
+   # agent knows "where" — not yet "which run"
 
-Launch-only options—``model``, ``target``, ``webhook``, ``images`` on **create**—do not apply to
-**follow_up**, which only takes prompt text and optional images.
+After :meth:`Agent.create`, the handle stores the returned **id**. :meth:`Agent.follow_up` sends
+more text to **that same** id. :meth:`Agent.attach` sets **id** when you already know it (e.g. after
+a restart) and skips a new **create** on that handle.
+
+**What this is NOT**
+
+* A second **create** on the same handle for “another task”—that starts a conflicting story. New
+  independent run → **new** ``new_agent(...)`` (or a new client + agent pattern you choose).
+
+Lifecycle in three beats
+-------------------------
+
+**Anchor:** **Pick a repo** → **start one run** → **add prompts to that run**.
+
+.. code-block:: python
+
+   agent = client.new_agent(repo="https://github.com/org/repo", ref="main")
+   agent.create("Implement feature X.")       # first message — creates remote run, stores id
+   agent.follow_up("Add tests.")              # same run
+   agent.follow_up("Open a PR when ready.")  # still same run
+
+Optional extras (model, branch/PR targets, webhooks, images) belong on **create**, not on routine
+**follow_up**—follow-ups are mostly “more text” (and optional images) on the same run.
+
+**What this is NOT**
+
+* **create** repeated on the same handle for every message—that would fight the model above. First
+  instruction **create**; later ones **follow_up**.
 
 Sync vs async
 -------------
 
-* **SyncClient** / **Agent** — blocking calls; simplest for scripts and notebooks.
-* **AsyncClient** / **AsyncAgent** — ``await`` each network call; use inside ``asyncio`` when your
-  app is already async (e.g. web servers, concurrent tasks).
+**Anchor:** Same API shape; **sync** blocks until each call returns, **async** uses ``await`` and
+fits ``asyncio`` apps.
 
-The HTTP surface is the same; only the calling style changes.
+* Scripts and notebooks → :class:`SyncClient` / :class:`Agent`.
+* Servers or async pipelines → :class:`AsyncClient` / :class:`AsyncAgent`.
 
-Low-level vs high-level
------------------------
+**What this is NOT**
 
-* **High-level** — :meth:`Agent.create` and :meth:`Agent.follow_up` keep **id** and **source**
-  consistent and match the mental model above.
-* **Low-level** — :meth:`SyncClient.launch_agent`, :meth:`SyncClient.followup`, etc. map directly to
-  routes; you pass **agent_id** yourself. Use when you need full control or are not using the
-  :class:`Agent` helper.
+* Async is not “stronger”—only choose it when your program is already async.
 
-Errors
-------
+Helpers vs raw client methods
+-----------------------------
 
-Failed HTTP responses raise :exc:`cursor_agent.CursorAPIError`, with ``status_code`` and often the
-underlying :class:`httpx.Response` attached for logging or debugging.
+**Anchor:** **Agent** methods keep **id** and **source** consistent; **client** methods like
+``launch_agent`` / ``followup`` expect you to pass **agent_id** yourself.
+
+Prefer **Agent** until you need something only the low-level calls expose.
+
+**What this is NOT**
+
+* Two different backends—same service, different amount of bookkeeping in Python.
+
+When things fail
+----------------
+
+**Anchor:** HTTP errors become :exc:`cursor_agent.CursorAPIError` so you can log ``status_code`` and
+inspect ``response`` without guessing strings.
