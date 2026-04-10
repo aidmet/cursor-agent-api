@@ -142,6 +142,7 @@ agent.create("Small doc fixes only.")
 
 ## Docs
 
+- **HTML documentation (Sphinx):** `https://aidmet.github.io/cursor-agent-api/`  
 - **Package on PyPI:** [cursor-agent-sdk](https://pypi.org/project/cursor-agent-sdk/)  
 - **Cursor Cloud Agents API (endpoints)** — [cursor.com/docs](https://cursor.com/docs/cloud-agent/api/endpoints)  
 - **Cursor APIs overview** — [cursor.com/docs/api](https://cursor.com/docs/api)  

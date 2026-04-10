@@ -14,6 +14,7 @@ Install from PyPI: ``pip install cursor-agent-sdk`` (`project page <https://pypi
    :caption: Guide
 
    overview
+   concepts
    quickstart
 
 .. toctree::

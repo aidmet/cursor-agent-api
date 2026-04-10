@@ -28,6 +28,10 @@ dependencies = [
     "httpx>=0.27,<1",
 ]
 
+[project.urls]
+# GitHub → repo → Settings → Pages — paste the same URL PyPI shows as "Documentation"
+Documentation = "https://aidmet.github.io/cursor-agent-api/"
+
 [project.optional-dependencies]
 docs = [
     "sphinx>=7",

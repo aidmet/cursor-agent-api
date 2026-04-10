@@ -11,6 +11,8 @@ the same workflows you might otherwise drive from the Cursor Dashboard (Cloud Ag
 
 This package is **not** maintained by Cursor; it is a community wrapper.
 
+For terminology and lifecycle in more detail, see :doc:`concepts`.
+
 Clients and agents
 ------------------
 
